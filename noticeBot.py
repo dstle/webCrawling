@@ -83,10 +83,8 @@ def get_dwu_notice():
         href = 'https://www.dongduk.ac.kr/board/kor/kor_notice/detail.do?curPageNo=1&pageStatus=N&rowSize=15&B_IDX=' + \
             str(index)
 
-        # 추후 today로 변경
+        #공지사항 리스트
         if eq(today, date):
-            # 오늘 날짜 공지인 경우
-            # 밑에 카카오링크 api로 변경? 추후 결정
             rslt = "[" + date + "]\n" + title + "\n" + href
             noticelist.append(rslt)
 
@@ -111,7 +109,7 @@ def main():
     sched = BackgroundScheduler()
     sched.start()
 
-    # # 한시간 마다 job_1 실행
+    # 15분마다 실행
     sched.add_job(job, 'interval', minutes=15)
 
     while True:
