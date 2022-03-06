@@ -1,14 +1,15 @@
 import time
+import datetime
 import win32con
 import win32api
 import win32gui
 import requests
 import json
+import logging
 
 from operator import eq
-from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
-
+from logging.handlers import TimedRotatingFileHandler
 
 # # 카톡창 이름, (활성화 상태의 열려있는 창)
 kakao_opentalk_name = 'noticebot'
@@ -27,7 +28,8 @@ def kakao_sendtext(chatroom_name, notice):
         for i in range(idx, check):
             win32api.SendMessage(hwndEdit, win32con.WM_SETTEXT, 0, notice[i])
             SendReturn(hwndEdit)
-            print(notice[i])
+            botLogger = logging.getLogger()
+            botLogger.debug(notice[i])
             time.sleep(3)
     idx = check
 
@@ -64,7 +66,7 @@ def open_chatroom(chatroom_name):
 
 def get_dwu_notice():
 
-    today = datetime.today().strftime("%Y%m%d")
+    today = datetime.datetime.today().strftime("%Y%m%d")
     url = 'https://www.dongduk.ac.kr/ajax/board/kor/kor_notice/list.json'
     req = requests.get(url)
 
@@ -105,16 +107,30 @@ def job():
     kakao_sendtext(kakao_opentalk_name, notice)  # 메시지 전송, time/실검
 
 
+# # log 환경설정
+def set_logger():
+    botLogger = logging.getLogger()
+    botLogger.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s",
+                                "%Y-%m-%d %H:%M:%S")
+    rotatingHandler = TimedRotatingFileHandler(
+        filename='./noticebot_log/webCrawling.log', when='W0', encoding='utf-8', backupCount=5, atTime=datetime.time(0, 0, 0))
+    rotatingHandler.setLevel(logging.DEBUG)
+    rotatingHandler.setFormatter(formatter)
+    botLogger.addHandler(rotatingHandler)
+
 def main():
     sched = BackgroundScheduler()
     sched.start()
+    set_logger()
 
     # 15분마다 실행
     sched.add_job(job, 'interval', minutes=15)
 
     while True:
-        print("실행중.................")
-        time.sleep(60)
+        botLogger = logging.getLogger()
+        botLogger.debug("-------------실행 중-------------")
+        time.sleep(900)
 
 
 if __name__ == '__main__':
