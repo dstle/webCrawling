@@ -17,19 +17,21 @@ idx = 0
 
 
 # # 채팅방에 메시지 전송
-def kakao_sendtext(chatroom_name, notice):
+def kakao_sendtext(chatroom_name, noticeList):
     # # 핸들 _ 채팅방
     hwndMain = win32gui.FindWindow(None, chatroom_name)
     hwndEdit = win32gui.FindWindowEx(hwndMain, None, "RICHEDIT50W", None)
 
-    check = len(notice)
+    check = len(noticeList)
     global idx
+
     if(idx < check):
         for i in range(idx, check):
-            win32api.SendMessage(hwndEdit, win32con.WM_SETTEXT, 0, notice[i])
+            win32api.SendMessage(
+                hwndEdit, win32con.WM_SETTEXT, 0, noticeList[i])
             SendReturn(hwndEdit)
             botLogger = logging.getLogger()
-            botLogger.debug(notice[i])
+            botLogger.debug(noticeList[i])
             time.sleep(3)
     idx = check
 
@@ -77,7 +79,11 @@ def get_dwu_notice():
     temp = data.get('data')
     rslt = temp.get('list')
 
-    noticelist = []
+    # 만약 제목이 같으면 최신 공지만 전송하도록 하기 위해 global_title 변수 사용
+    global global_title
+    global_title = '공지방 홧팅'
+
+    noticeList = []
     for i in rslt:
         date = i.get('REG_DT')[:8]
         index = i.get('B_IDX')
@@ -85,15 +91,21 @@ def get_dwu_notice():
         href = 'https://www.dongduk.ac.kr/board/kor/kor_notice/detail.do?curPageNo=1&pageStatus=N&rowSize=15&B_IDX=' + \
             str(index)
 
-        #공지사항 리스트
+        # 최신 공지만 noticeList에 추가하도록 판별
+        if eq(title, global_title):
+            continue
+        else:
+            global_title = title
+
+        # 공지사항 리스트
         if eq(today, date):
             rslt = "[" + date + "]\n" + title + "\n" + href
-            noticelist.append(rslt)
+            noticeList.append(rslt)
 
     # 리스트 역순 정렬
-    noticelist.reverse()
+    noticeList.reverse()
 
-    return noticelist
+    return noticeList
 
 
 # # 스케줄러 job : 매 시간마다 공지사항 크롤링해서 가져오기
@@ -102,22 +114,33 @@ def job():
         f"{time.localtime().tm_year}-{time.localtime().tm_mon}-{time.localtime().tm_mday} / " \
         f"{time.localtime().tm_hour}:{time.localtime().tm_min}:{time.localtime().tm_sec}"
 
-    open_chatroom(kakao_opentalk_name)  # 채팅방 열기
-    notice = get_dwu_notice()
-    kakao_sendtext(kakao_opentalk_name, notice)  # 메시지 전송, time/실검
+    # 채팅방 열기
+    open_chatroom(kakao_opentalk_name)
+    noticeList = get_dwu_notice()
+
+    # 메시지 전송, time/실검
+    kakao_sendtext(kakao_opentalk_name, noticeList)
 
 
 # # log 환경설정
 def set_logger():
     botLogger = logging.getLogger()
+
+    # setting log file level -> DEBUG
     botLogger.setLevel(logging.DEBUG)
     formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s",
-                                "%Y-%m-%d %H:%M:%S")
+                                  "%Y-%m-%d %H:%M:%S")
+
+    # 일주일에 한번 월요일 자정에 로그 파일 새로 생성. 최대 5개까지 파일 관리.
     rotatingHandler = TimedRotatingFileHandler(
         filename='./noticebot_log/webCrawling.log', when='W0', encoding='utf-8', backupCount=5, atTime=datetime.time(0, 0, 0))
     rotatingHandler.setLevel(logging.DEBUG)
     rotatingHandler.setFormatter(formatter)
+
+    # 파일 이름 suffix 설정 (webCrawling.log.yyyy-mm-dd-hh-mm 형식)
+    rotatingHandler.suffix = datetime.datetime.today().strftime("%Y-%m-%d-%H-%M")
     botLogger.addHandler(rotatingHandler)
+
 
 def main():
     sched = BackgroundScheduler()
