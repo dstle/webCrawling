@@ -6,7 +6,9 @@ import win32gui
 import requests
 import json
 import logging
+import requests 
 
+from bs4 import BeautifulSoup
 from operator import eq
 from apscheduler.schedulers.background import BackgroundScheduler
 from logging.handlers import TimedRotatingFileHandler
@@ -17,23 +19,21 @@ idx = 0
 
 
 # # 채팅방에 메시지 전송
-def kakao_sendtext(chatroom_name, noticeList):
+def kakao_sendtext(chatroom_name, noticeLists):
     # # 핸들 _ 채팅방
     hwndMain = win32gui.FindWindow(None, chatroom_name)
     hwndEdit = win32gui.FindWindowEx(hwndMain, None, "RICHEDIT50W", None)
 
-    check = len(noticeList)
-    global idx
+    check = len(noticeLists)
 
-    if(idx < check):
-        for i in range(idx, check):
-            win32api.SendMessage(
-                hwndEdit, win32con.WM_SETTEXT, 0, noticeList[i])
-            SendReturn(hwndEdit)
-            botLogger = logging.getLogger()
-            botLogger.debug(noticeList[i])
-            time.sleep(3)
-    idx = check
+  
+    for noticeList in noticeLists:
+        win32api.SendMessage(hwndEdit, win32con.WM_SETTEXT, 0, noticeList)
+        SendReturn(hwndEdit)
+        botLogger = logging.getLogger()
+        botLogger.debug(noticeList)
+        time.sleep(3)
+
 
 
 # # 엔터
@@ -67,45 +67,37 @@ def open_chatroom(chatroom_name):
 
 
 def get_dwu_notice():
+    global idx
+    url = 'https://www.dongduk.ac.kr/www/contents/kor-noti.do?gotoMenuNo=kor-noti'  
+    response = requests.get(url)    
+    dongduk_url = 'https://www.dongduk.ac.kr/www/contents/kor-noti.do?schM=view&page=1&viewCount=10&id='
 
-    today = datetime.datetime.today().strftime("%Y%m%d")
-    url = 'https://www.dongduk.ac.kr/ajax/board/kor/kor_notice/list.json'
-    req = requests.get(url)
+    if response.status_code == 200:
+        html = response.text
+        soup = BeautifulSoup(html, 'html.parser')
+        notices = soup.select_one('ul.board-basic')
+        elements = notices.select('li > dl')
 
-    html = req.text
+        set = set()
 
-    data = json.loads(html)
+        for element in elements:
+            id = element.a.get('onclick').split("'")[1] # onclick 속성 값 중 " ' " 로 split 해서 두번째 값 가져옴
+            title = element.a.text.strip() 
+            date = element.find_all('span', 'p_hide')[1].text # .find_all(태그 이름, 속성) 해당 하는 정보 모두 조회
+            
+            set.add((int(id), title, date))
 
-    temp = data.get('data')
-    rslt = temp.get('list')
+        list = [element for element in set if element[0] > idx]
 
-    # 만약 제목이 같으면 최신 공지만 전송하도록 하기 위해 global_title 변수 사용
-    global global_title
-    global_title = '공지방 홧팅'
+        list.sort(key = lambda x:x[0])
+        idx = list[-1][0]
 
-    noticeList = []
-    for i in rslt:
-        date = i.get('REG_DT')[:8]
-        index = i.get('B_IDX')
-        title = i.get('B_TITLE')
-        href = 'https://www.dongduk.ac.kr/board/kor/kor_notice/detail.do?curPageNo=1&pageStatus=N&rowSize=15&B_IDX=' + \
-            str(index)
+        noticeList = []
+        for element in list:
+            notice = '[' + element[2] + ']\n' + element[1] + '\n' + dongduk_url + str(element[0])
+            noticeList.append(notice)
 
-        # 최신 공지만 noticeList에 추가하도록 판별
-        if eq(title, global_title):
-            continue
-        else:
-            global_title = title
-
-        # 공지사항 리스트
-        if eq(today, date):
-            rslt = "[" + date + "]\n" + title + "\n" + href
-            noticeList.append(rslt)
-
-    # 리스트 역순 정렬
-    noticeList.reverse()
-
-    return noticeList
+        return noticeList
 
 
 # # 스케줄러 job : 매 시간마다 공지사항 크롤링해서 가져오기
