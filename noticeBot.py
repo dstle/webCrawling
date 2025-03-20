@@ -12,7 +12,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from logging.handlers import TimedRotatingFileHandler
 
 # 카톡창 이름 리스트
-kakao_opentalk_name = ['noticebot', 'noticebot2']
+kakao_opentalk_name = ['noticebot', '동덕여대 공지방2']
 idx = 0
 
 # 로거 설정
@@ -92,12 +92,18 @@ def get_dwu_notice():
     notices = soup.select_one('ul.board-basic')
     elements = notices.select('li > dl')
 
-    notice_set = set()
+    notice_set = []
+    existing_ids = set()
+    
     for element in elements:
         id = int(element.a.get('onclick').split("'")[1])
+        if id in existing_ids: # 중복 방지
+            continue  
+        existing_ids.add(id)
+    
         title = element.a.text.strip()
         date = element.find_all('span', 'p_hide')[1].text
-        notice_set.add({"id": id, "title": title, "date": date, "link": f"{dongduk_url}{id}"})
+        notice_set.append({"id": id, "title": title, "date": date, "link": f"{dongduk_url}{id}"})
 
     new_notices = [el for el in notice_set if el["id"] > idx]
     if new_notices:
