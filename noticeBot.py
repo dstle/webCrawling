@@ -59,6 +59,17 @@ def SendEsc(hwnd):
     win32api.PostMessage(hwnd, win32con.WM_KEYDOWN, win32con.VK_ESCAPE, 0)
     win32api.PostMessage(hwnd, win32con.WM_KEYUP, win32con.VK_ESCAPE, 0)
 
+# clean chatroom search box
+def cleanChatroom():
+    hwnd_kakao = win32gui.FindWindow(None, "카카오톡")
+    hwnd_edit1 = win32gui.FindWindowEx(hwnd_kakao, None, "EVA_ChildWindow", None)
+    hwnd_edit2_1 = win32gui.FindWindowEx(hwnd_edit1, None, "EVA_Window", None)
+    hwnd_edit2_2 = win32gui.FindWindowEx(hwnd_edit1, hwnd_edit2_1, "EVA_Window", None)
+    hwnd_edit3 = win32gui.FindWindowEx(hwnd_edit2_2, None, "Edit", None)
+    win32api.SendMessage(hwnd_edit3, win32con.WM_SETTEXT, 0, '')
+
+    return hwnd_edit3
+
 # 채팅방에 메시지 전송
 def kakao_sendtext(chatroom_name, noticeLists):
     botLogger.info(f"[kakao_sendtext] Sending {len(noticeLists)} messages to '{chatroom_name}'")
@@ -127,6 +138,9 @@ def job(chatroom_name):
     botLogger.info(f"[job] chatroom name is {chatroom_name}")
     if open_chatroom(chatroom_name):
         kakao_sendtext(chatroom_name, noticeList)
+        if cleanChatroom() == 0:
+            botLogger.error(f"[job] Failed to clean chatroom.")
+            return
         
     botLogger.info("[job] Job completed.")
 
