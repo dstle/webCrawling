@@ -120,7 +120,7 @@ def get_dwu_notice():
     return []
 
 # scheduler job
-def job():
+def job(chatroom_name):
     botLogger.info("[job] Running scheduled job...")
     noticeList = get_dwu_notice()
     
