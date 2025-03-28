@@ -14,7 +14,7 @@
 > Tech Stack 🛠
 
 - Language : Python
-- Library : pywin32, requests, apscheduler
+- Library : pypiwin32, requests, apscheduler, logging, BeautifulSoup4, argparse
 - Server : AWS EC2 (Free-tier)
 
 <br>
@@ -26,6 +26,21 @@
 3. 간단한 알고리즘을 사용하여 실시간으로 받아온 공지 데이터가 이미 전송된 공지사항인지 체크한다.
 4. 스케줄러를 사용해 공지사항 올라오는 주기를 고려하여 작업 시간을 설정한다. (15분 주기로 설정함)
 5. 작업 시간마다 새롭게 올라온 공지사항을 메세지로 전송한다.
+
+<br>
+
+> How to run the program 💻
+```
+$ python [file name] --chatroom [chatroom name] --verbose
+usage: noticeBot.py [-h] [--chatroom CHATROOM] [--verbose]
+
+Notice Bot for Dongduk Women's University
+
+options:
+  -h, --help           show this help message and exit
+  --chatroom CHATROOM  chatroom name
+  --verbose            verbose output
+```
 
 <br>
 
