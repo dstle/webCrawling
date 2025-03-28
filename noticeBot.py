@@ -15,12 +15,12 @@ from logging.handlers import TimedRotatingFileHandler
 kakao_opentalk_name = ['noticebot', '동덕여대 공지방2']
 idx = 0
 
-# 로거 설정
+# setting logger
 def set_logger():
     global botLogger
     botLogger = logging.getLogger("KakaoBot")
     botLogger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", "%Y-%m-%d %H:%M:%S")
+    formatter = logging.Formatter("%(asctime)s | PID %(process)d | %(levelname)s | %(message)s", "%Y-%m-%d %H:%M:%S")
     
     rotatingHandler = TimedRotatingFileHandler(
         filename='./noticebot_log/webCrawling.log', when='midnight', encoding='utf-8', backupCount=7)
