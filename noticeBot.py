@@ -1,26 +1,23 @@
 import time
-import datetime
 import win32con
 import win32api
 import win32gui
 import requests
-import json
 import logging
+import argparse
 from bs4 import BeautifulSoup
 from operator import eq
 from apscheduler.schedulers.background import BackgroundScheduler
 from logging.handlers import TimedRotatingFileHandler
 
-# 카톡창 이름 리스트
-kakao_opentalk_name = ['noticebot', '동덕여대 공지방2']
 idx = 0
 
-# 로거 설정
+# setting logger
 def set_logger():
     global botLogger
     botLogger = logging.getLogger("KakaoBot")
     botLogger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", "%Y-%m-%d %H:%M:%S")
+    formatter = logging.Formatter("%(asctime)s | PID %(process)d | %(levelname)s | %(message)s", "%Y-%m-%d %H:%M:%S")
     
     rotatingHandler = TimedRotatingFileHandler(
         filename='./noticebot_log/webCrawling.log', when='midnight', encoding='utf-8', backupCount=7)
@@ -31,7 +28,7 @@ def set_logger():
     botLogger.addHandler(rotatingHandler)
     botLogger.info("Logger initialized.")
 
-# 채팅방 열기
+# Search the chatroom and Open
 def open_chatroom(chatroom_name):
     botLogger.info(f"[open_chatroom] Trying to open chatroom: {chatroom_name}")
     hwnd_kakao = win32gui.FindWindow(None, "카카오톡")
@@ -51,11 +48,26 @@ def open_chatroom(chatroom_name):
     botLogger.info(f"[open_chatroom] Chatroom '{chatroom_name}' opened.")
     return True
 
-# 엔터 입력
+# Click the "Enter"
 def SendReturn(hwnd):
     win32api.PostMessage(hwnd, win32con.WM_KEYDOWN, win32con.VK_RETURN, 0)
-    time.sleep(0.01)
     win32api.PostMessage(hwnd, win32con.WM_KEYUP, win32con.VK_RETURN, 0)
+    
+# Click the "ESC"
+def SendEsc(hwnd):
+    win32api.PostMessage(hwnd, win32con.WM_KEYDOWN, win32con.VK_ESCAPE, 0)
+    win32api.PostMessage(hwnd, win32con.WM_KEYUP, win32con.VK_ESCAPE, 0)
+
+# clean chatroom search box
+def cleanChatroom():
+    hwnd_kakao = win32gui.FindWindow(None, "카카오톡")
+    hwnd_edit1 = win32gui.FindWindowEx(hwnd_kakao, None, "EVA_ChildWindow", None)
+    hwnd_edit2_1 = win32gui.FindWindowEx(hwnd_edit1, None, "EVA_Window", None)
+    hwnd_edit2_2 = win32gui.FindWindowEx(hwnd_edit1, hwnd_edit2_1, "EVA_Window", None)
+    hwnd_edit3 = win32gui.FindWindowEx(hwnd_edit2_2, None, "Edit", None)
+    win32api.SendMessage(hwnd_edit3, win32con.WM_SETTEXT, 0, '')
+
+    return hwnd_edit3
 
 # 채팅방에 메시지 전송
 def kakao_sendtext(chatroom_name, noticeLists):
@@ -75,6 +87,8 @@ def kakao_sendtext(chatroom_name, noticeLists):
         time.sleep(3)
     
     botLogger.info(f"[kakao_sendtext] Completed sending messages to '{chatroom_name}'")
+    SendEsc(hwndEdit)
+    botLogger.info(f"[kakao_close_chatroom] Close the '{chatroom_name}' !!")
 
 # 공지사항 크롤링
 def get_dwu_notice():
@@ -115,24 +129,44 @@ def get_dwu_notice():
     botLogger.info("[get_dwu_notice] No new notices found.")
     return []
 
-# 스케줄러 job
-def job():
+# scheduler job
+def job(chatroom_name):
     botLogger.info("[job] Running scheduled job...")
     noticeList = get_dwu_notice()
     
-    for chatroom in kakao_opentalk_name: 
-        if open_chatroom(chatroom):
-            kakao_sendtext(chatroom, noticeList)
-    
+    botLogger.info(f"[job] chatroom name is {chatroom_name}")
+    if open_chatroom(chatroom_name):
+        kakao_sendtext(chatroom_name, noticeList)
+        if cleanChatroom() == 0:
+            botLogger.error(f"[job] Failed to clean chatroom.")
+            return
+        
     botLogger.info("[job] Job completed.")
 
-# 메인 함수
+# Main
 def main():
+    # add parser
+    parser = argparse.ArgumentParser(description='Notice Bot for Dongduk Women\'s University')
+
+    # add parameters
+    parser.add_argument('--chatroom', type=str, help='chatroom name')
+    parser.add_argument('--verbose', action='store_true', help='verbose output')
+
+    # parse parameters
+    args = parser.parse_args()
+    chatroom_name = args.chatroom
+
+    # use verbose option to print chatroom name
+    if args.verbose:
+        print(f"chatroom name: {args.chatroom}")
+
+
     set_logger()
     botLogger.info("Bot is starting...")
+
     sched = BackgroundScheduler()
     sched.start()
-    sched.add_job(job, 'interval', minutes=15)
+    sched.add_job(job, 'interval', minutes=15, args=[chatroom_name])
     
     while True:
         botLogger.debug("[main] Bot is running...")
