@@ -31,7 +31,7 @@ def set_logger():
     botLogger.addHandler(rotatingHandler)
     botLogger.info("Logger initialized.")
 
-# 채팅방 열기
+# Search the chatroom and Open
 def open_chatroom(chatroom_name):
     botLogger.info(f"[open_chatroom] Trying to open chatroom: {chatroom_name}")
     hwnd_kakao = win32gui.FindWindow(None, "카카오톡")
@@ -51,11 +51,15 @@ def open_chatroom(chatroom_name):
     botLogger.info(f"[open_chatroom] Chatroom '{chatroom_name}' opened.")
     return True
 
-# 엔터 입력
+# Click the "Enter"
 def SendReturn(hwnd):
     win32api.PostMessage(hwnd, win32con.WM_KEYDOWN, win32con.VK_RETURN, 0)
-    time.sleep(0.01)
     win32api.PostMessage(hwnd, win32con.WM_KEYUP, win32con.VK_RETURN, 0)
+    
+# Click the "ESC"
+def SendEsc(hwnd):
+    win32api.PostMessage(hwnd, win32con.WM_KEYDOWN, win32con.VK_ESCAPE, 0)
+    win32api.PostMessage(hwnd, win32con.WM_KEYUP, win32con.VK_ESCAPE, 0)
 
 # 채팅방에 메시지 전송
 def kakao_sendtext(chatroom_name, noticeLists):
@@ -75,6 +79,8 @@ def kakao_sendtext(chatroom_name, noticeLists):
         time.sleep(3)
     
     botLogger.info(f"[kakao_sendtext] Completed sending messages to '{chatroom_name}'")
+    SendEsc(hwndEdit)
+    botLogger.info(f"[kakao_close_chatroom] Close the '{chatroom_name}' !!")
 
 # 공지사항 크롤링
 def get_dwu_notice():
