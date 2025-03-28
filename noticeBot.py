@@ -11,8 +11,6 @@ from operator import eq
 from apscheduler.schedulers.background import BackgroundScheduler
 from logging.handlers import TimedRotatingFileHandler
 
-# 카톡창 이름 리스트
-kakao_opentalk_name = ['noticebot', '동덕여대 공지방2']
 idx = 0
 
 # setting logger
@@ -121,24 +119,41 @@ def get_dwu_notice():
     botLogger.info("[get_dwu_notice] No new notices found.")
     return []
 
-# 스케줄러 job
+# scheduler job
 def job():
     botLogger.info("[job] Running scheduled job...")
     noticeList = get_dwu_notice()
     
-    for chatroom in kakao_opentalk_name: 
-        if open_chatroom(chatroom):
-            kakao_sendtext(chatroom, noticeList)
-    
+    botLogger.info(f"[job] chatroom name is {chatroom_name}")
+    if open_chatroom(chatroom_name):
+        kakao_sendtext(chatroom_name, noticeList)
+        
     botLogger.info("[job] Job completed.")
 
-# 메인 함수
+# Main
 def main():
+    # add parser
+    parser = argparse.ArgumentParser(description='Notice Bot for Dongduk Women\'s University')
+
+    # add parameters
+    parser.add_argument('--chatroom', type=str, help='chatroom name')
+    parser.add_argument('--verbose', action='store_true', help='verbose output')
+
+    # parse parameters
+    args = parser.parse_args()
+    chatroom_name = args.chatroom
+
+    # use verbose option to print chatroom name
+    if args.verbose:
+        print(f"chatroom name: {args.chatroom}")
+
+
     set_logger()
     botLogger.info("Bot is starting...")
+
     sched = BackgroundScheduler()
     sched.start()
-    sched.add_job(job, 'interval', minutes=15)
+    sched.add_job(job, 'interval', minutes=15, args=[chatroom_name])
     
     while True:
         botLogger.debug("[main] Bot is running...")
