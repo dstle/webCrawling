@@ -15,8 +15,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 # # 카톡창 이름, (활성화 상태의 열려있는 창)
 kakao_opentalk_name = 'noticebot'
-idx = 0
-
+idx = 89975
 
 # # 채팅방에 메시지 전송
 def kakao_sendtext(chatroom_name, noticeLists):
@@ -33,7 +32,6 @@ def kakao_sendtext(chatroom_name, noticeLists):
         botLogger = logging.getLogger()
         botLogger.debug(noticeList)
         time.sleep(3)
-
 
 
 # # 엔터
@@ -64,40 +62,43 @@ def open_chatroom(chatroom_name):
     time.sleep(1)
 
 # 공지사항 크롤링하기
-
-
 def get_dwu_notice():
     global idx
     url = 'https://www.dongduk.ac.kr/www/contents/kor-noti.do?gotoMenuNo=kor-noti'  
     response = requests.get(url)    
     dongduk_url = 'https://www.dongduk.ac.kr/www/contents/kor-noti.do?schM=view&page=1&viewCount=10&id='
 
-    if response.status_code == 200:
-        html = response.text
-        soup = BeautifulSoup(html, 'html.parser')
-        notices = soup.select_one('ul.board-basic')
-        elements = notices.select('li > dl')
+    if response.status_code != 200:
+        botLogger.error(f"[get_dwu_notice] Failed to fetch notices. HTTP {response.status_code}")
+        return []
 
-        set = set()
+    html = response.text
+    soup = BeautifulSoup(html, 'html.parser')
+    notices = soup.select_one('ul.board-basic')
+    elements = notices.select('li > dl')
 
-        for element in elements:
-            id = element.a.get('onclick').split("'")[1] # onclick 속성 값 중 " ' " 로 split 해서 두번째 값 가져옴
-            title = element.a.text.strip() 
-            date = element.find_all('span', 'p_hide')[1].text # .find_all(태그 이름, 속성) 해당 하는 정보 모두 조회
-            
-            set.add((int(id), title, date))
+    notice_set = []
+    existing_ids = set()
 
-        list = [element for element in set if element[0] > idx]
+    for element in elements:
+        id = int(element.a.get('onclick').split("'")[1])
+        if id in existing_ids: # 중복 방지
+            continue  
+        existing_ids.add(id)
+    
+        title = element.a.text.strip()
+        date = element.find_all('span', 'p_hide')[1].text
+        notice_set.append({"id": id, "title": title, "date": date, "link": f"{dongduk_url}{id}"})
 
-        list.sort(key = lambda x:x[0])
-        idx = list[-1][0]
-
-        noticeList = []
-        for element in list:
-            notice = '[' + element[2] + ']\n' + element[1] + '\n' + dongduk_url + str(element[0])
-            noticeList.append(notice)
-
-        return noticeList
+    new_notices = [el for el in notice_set if el["id"] > idx]
+    if new_notices:
+        new_notices.sort(key=lambda x: x["id"])
+        idx = new_notices[-1]["id"]
+        botLogger.info(f"[get_dwu_notice] {len(new_notices)} new notices fetched.")
+        return new_notices
+    
+    botLogger.info("[get_dwu_notice] No new notices found.")
+    return []
 
 
 # # 스케줄러 job : 매 시간마다 공지사항 크롤링해서 가져오기
@@ -116,9 +117,8 @@ def job():
 
 # # log 환경설정
 def set_logger():
+    global botLogger 
     botLogger = logging.getLogger()
-
-    # setting log file level -> DEBUG
     botLogger.setLevel(logging.DEBUG)
     formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s",
                                   "%Y-%m-%d %H:%M:%S")
