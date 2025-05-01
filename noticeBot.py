@@ -23,16 +23,14 @@ def kakao_sendtext(chatroom_name, noticeLists):
     hwndMain = win32gui.FindWindow(None, chatroom_name)
     hwndEdit = win32gui.FindWindowEx(hwndMain, None, "RICHEDIT50W", None)
 
-    check = len(noticeLists)
-
-  
-    for noticeList in noticeLists:
-        win32api.SendMessage(hwndEdit, win32con.WM_SETTEXT, 0, noticeList)
+    for notice in noticeLists:
+        message = f"📢 [공지사항] {notice['date']}\n🔹 제목: {notice['title']}\n🔗 링크: {notice['link']}"
+        win32api.SendMessage(hwndEdit, win32con.WM_SETTEXT, 0, message)
         SendReturn(hwndEdit)
-        botLogger = logging.getLogger()
-        botLogger.debug(noticeList)
+        botLogger.info(f"[kakao_sendtext] Message sent: {message}")
         time.sleep(3)
-
+    
+    botLogger.info(f"[kakao_sendtext] Completed sending messages to '{chatroom_name}'")
 
 # # 엔터
 def SendReturn(hwnd):
